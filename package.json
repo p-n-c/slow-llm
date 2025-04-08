@@ -1,0 +1,19 @@
+{
+  "name": "slow-llm",
+  "version": "0.0.1",
+  "description": "Exploring ways to slow down LLM interactions",
+  "author": "People and Code",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . && prettier --write . --log-level silent",
+    "start": "python ./src/llm-api-server.py"
+  },
+  "devDependencies": {
+    "eslint": "latest",
+    "prettier": "latest",
+    "stylelint": "latest",
+    "stylelint-config-standard": "latest",
+    "globals": "^15.14.0"
+  },
+  "source": "./src/llm-web-client.html"
+}

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM API Client</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .panel {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+      }
+      .message-container {
+        margin-top: 20px;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #eee;
+        padding: 10px;
+      }
+      .message {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+      }
+      .user-message {
+        background-color: #e6f7ff;
+        text-align: right;
+      }
+      .model-message {
+        background-color: #f5f5f5;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        resize: vertical;
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      select {
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+      .tab-buttons {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 15px;
+      }
+      .tab-button {
+        padding: 10px 15px;
+        background-color: #f1f1f1;
+        border: none;
+        border-radius: 5px 5px 0 0;
+        cursor: pointer;
+        color: black;
+      }
+      .tab-button.active {
+        background-color: #4caf50;
+        color: white;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>LLM API Client</h1>
+
+      <div class="tab-buttons">
+        <button class="tab-button active" onclick="switchTab('single-prompt')">
+          Single Prompt
+        </button>
+        <button class="tab-button" onclick="switchTab('conversation')">
+          Conversation
+        </button>
+      </div>
+
+      <div id="single-prompt" class="tab-content active">
+        <div class="panel">
+          <h2>Single Prompt</h2>
+          <div>
+            <label for="system-prompt">System Prompt (Optional):</label>
+            <textarea
+              id="system-prompt"
+              rows="2"
+              placeholder="Optional system prompt..."
+            ></textarea>
+          </div>
+          <div>
+            <label for="single-user-prompt">Your Prompt:</label>
+            <textarea
+              id="single-user-prompt"
+              rows="4"
+              placeholder="Enter your prompt here..."
+            ></textarea>
+          </div>
+          <div class="controls">
+            <button id="send-single-prompt">Send Prompt</button>
+          </div>
+          <div class="message-container" id="single-response"></div>
+        </div>
+      </div>
+
+      <div id="conversation" class="tab-content">
+        <div class="panel">
+          <h2>Conversation</h2>
+          <div class="controls">
+            <button id="start-conversation">Start New Conversation</button>
+            <button id="delete-conversation" disabled>
+              Delete Conversation
+            </button>
+          </div>
+          <div id="conversation-status">No active conversation</div>
+          <div class="message-container" id="conversation-messages"></div>
+          <div>
+            <textarea
+              id="conversation-prompt"
+              rows="4"
+              placeholder="Enter your message here..."
+              disabled
+            ></textarea>
+          </div>
+          <div class="controls">
+            <button id="send-conversation-prompt" disabled>Send Message</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // API endpoint
+      const API_BASE_URL = 'http://127.0.0.1:5000'
+      let activeConversationId = null
+
+      // DOM elements
+      const systemPrompt = document.getElementById('system-prompt')
+      const singleUserPrompt = document.getElementById('single-user-prompt')
+      const sendSinglePromptBtn = document.getElementById('send-single-prompt')
+      const singleResponse = document.getElementById('single-response')
+      const startConversationBtn = document.getElementById('start-conversation')
+      const deleteConversationBtn = document.getElementById(
+        'delete-conversation'
+      )
+      const conversationStatus = document.getElementById('conversation-status')
+      const conversationMessages = document.getElementById(
+        'conversation-messages'
+      )
+      const conversationPrompt = document.getElementById('conversation-prompt')
+      const sendConversationPromptBtn = document.getElementById(
+        'send-conversation-prompt'
+      )
+
+      // Send a single prompt
+      async function sendSinglePrompt() {
+        const prompt = singleUserPrompt.value.trim()
+        if (!prompt) return
+
+        const system = systemPrompt.value.trim()
+
+        sendSinglePromptBtn.disabled = true
+        singleResponse.innerHTML =
+          '<div class="message user-message"><strong>You:</strong> ' +
+          prompt +
+          '</div>'
+        singleResponse.innerHTML +=
+          '<div class="message model-message"><strong>Model:</strong> Loading...</div>'
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/prompt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              prompt: prompt,
+              system: system || null,
+            }),
+          })
+
+          const data = await response.json()
+
+          if (response.ok) {
+            // Update the response text
+            const messages = singleResponse.querySelectorAll('.message')
+            const modelMessage = messages[messages.length - 1]
+            modelMessage.innerHTML =
+              '<strong>Model:</strong> ' + data.text.replace(/\n/g, '<br>')
+
+            // Add usage information if available
+            if (data.usage) {
+              const usageInfo = document.createElement('div')
+              usageInfo.className = 'usage-info'
+              usageInfo.innerHTML = `<small>Input tokens: ${data.usage.input_tokens}, Output tokens: ${data.usage.output_tokens}</small>`
+              modelMessage.appendChild(usageInfo)
+            }
+          } else {
+            singleResponse.innerHTML +=
+              '<div class="message model-message"><strong>Error:</strong> ' +
+              data.error +
+              '</div>'
+          }
+        } catch (error) {
+          console.error('Error sending prompt:', error)
+          singleResponse.innerHTML +=
+            '<div class="message model-message"><strong>Error:</strong> Failed to communicate with server</div>'
+        } finally {
+          sendSinglePromptBtn.disabled = false
+        }
+      }
+
+      // Start a new conversation
+      async function startConversation() {
+        const model = modelSelect.value
+
+        startConversationBtn.disabled = true
+        conversationStatus.textContent = 'Starting new conversation...'
+        conversationMessages.innerHTML = ''
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/conversation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model_id: model,
+            }),
+          })
+
+          const data = await response.json()
+
+          if (response.ok) {
+            activeConversationId = data.conversation_id
+            conversationStatus.textContent = `Active conversation: ${activeConversationId} (Model: ${data.model})`
+            conversationPrompt.disabled = false
+            sendConversationPromptBtn.disabled = false
+            deleteConversationBtn.disabled = false
+          } else {
+            conversationStatus.textContent =
+              'Failed to start conversation: ' + data.error
+          }
+        } catch (error) {
+          console.error('Error starting conversation:', error)
+          conversationStatus.textContent = 'Failed to communicate with server'
+        } finally {
+          startConversationBtn.disabled = false
+        }
+      }
+
+      // Send a message in the active conversation
+      async function sendConversationPrompt() {
+        if (!activeConversationId) return
+
+        const prompt = conversationPrompt.value.trim()
+        if (!prompt) return
+
+        sendConversationPromptBtn.disabled = true
+        conversationMessages.innerHTML +=
+          '<div class="message user-message"><strong>You:</strong> ' +
+          prompt +
+          '</div>'
+        conversationMessages.innerHTML +=
+          '<div class="message model-message"><strong>Model:</strong> Loading...</div>'
+        conversationMessages.scrollTop = conversationMessages.scrollHeight
+        conversationPrompt.value = ''
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/conversation/${activeConversationId}/prompt`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                prompt: prompt,
+              }),
+            }
+          )
+
+          const data = await response.json()
+
+          if (response.ok) {
+            // Update the response text
+            const messages = conversationMessages.querySelectorAll('.message')
+            const modelMessage = messages[messages.length - 1]
+            modelMessage.innerHTML =
+              '<strong>Model:</strong> ' + data.text.replace(/\n/g, '<br>')
+
+            // Add usage information if available
+            if (data.usage) {
+              const usageInfo = document.createElement('div')
+              usageInfo.className = 'usage-info'
+              usageInfo.innerHTML = `<small>Input tokens: ${data.usage.input_tokens}, Output tokens: ${data.usage.output_tokens}</small>`
+              modelMessage.appendChild(usageInfo)
+            }
+          } else {
+            conversationMessages.innerHTML +=
+              '<div class="message model-message"><strong>Error:</strong> ' +
+              data.error +
+              '</div>'
+          }
+        } catch (error) {
+          console.error('Error sending prompt:', error)
+          conversationMessages.innerHTML +=
+            '<div class="message model-message"><strong>Error:</strong> Failed to communicate with server</div>'
+        } finally {
+          sendConversationPromptBtn.disabled = false
+          conversationMessages.scrollTop = conversationMessages.scrollHeight
+        }
+      }
+
+      // Delete current conversation
+      async function deleteConversation() {
+        if (!activeConversationId) return
+
+        deleteConversationBtn.disabled = true
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/conversation/${activeConversationId}`,
+            {
+              method: 'DELETE',
+            }
+          )
+
+          const data = await response.json()
+
+          if (response.ok) {
+            conversationStatus.textContent = 'No active conversation'
+            conversationMessages.innerHTML = ''
+            conversationPrompt.disabled = true
+            sendConversationPromptBtn.disabled = true
+            activeConversationId = null
+          } else {
+            conversationStatus.textContent =
+              'Failed to delete conversation: ' + data.error
+          }
+        } catch (error) {
+          console.error('Error deleting conversation:', error)
+          conversationStatus.textContent = 'Failed to communicate with server'
+        } finally {
+          deleteConversationBtn.disabled = !activeConversationId
+        }
+      }
+
+      // Switch between tabs
+      function switchTab(tabId) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+          button.classList.remove('active')
+        })
+        document
+          .querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`)
+          .classList.add('active')
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active')
+        })
+        document.getElementById(tabId).classList.add('active')
+      }
+
+      // Event listeners
+      sendSinglePromptBtn.addEventListener('click', sendSinglePrompt)
+      startConversationBtn.addEventListener('click', startConversation)
+      deleteConversationBtn.addEventListener('click', deleteConversation)
+      sendConversationPromptBtn.addEventListener(
+        'click',
+        sendConversationPrompt
+      )
+
+      // Handle Enter key in conversation prompt
+      conversationPrompt.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault()
+          sendConversationPrompt()
+        }
+      })
+    </script>
+  </body>
+</html>
