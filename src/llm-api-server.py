@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # Configure the model to use - change this to your local model
-DEFAULT_MODEL_ID = "Llama-3"
+DEFAULT_MODEL_ID = os.environ.get("DEFAULT_MODEL_ID", "Llama-3")
 
 # You can set this in environment or directly here if needed
 # os.environ["MODEL_API_KEY"] = "your-api-key-if-needed"
@@ -138,7 +138,7 @@ def single_prompt():
         # Add usage information if available
         try:
             usage_data = response.usage()
-            if usage_data:
+            if usage_data.input:
                 result["usage"] = {
                     "input_tokens": usage_data.input,
                     "output_tokens": usage_data.output
@@ -146,7 +146,7 @@ def single_prompt():
         except:
             pass
             
-        pprint(response)
+        pprint(response.text())
         return jsonify(result)
         
     except llm.UnknownModelError:
@@ -245,5 +245,6 @@ def delete_conversation(conversation_id):
     return jsonify({"status": "deleted", "conversation_id": conversation_id})
 
 if __name__ == '__main__':
+    print(f"Starting server with DEFAULT_MODEL_ID: {DEFAULT_MODEL_ID}")
     # Set this to your desired host/port
     app.run(host='127.0.0.1', port=5000, debug=True)

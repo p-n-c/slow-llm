@@ -8,11 +8,13 @@
    pip install flask flask-cors llm
    ```
 
-2. **Configure the server:**
+2. **Configure the default model if needed:**
+   The server uses the `Llama-3` model by default. To choose another model, change the `DEFAULT_MODEL_ID` environment variable.
 
-   - Open the `llm-api-server.py` file
-   - Set `DEFAULT_MODEL_ID` to your local model ID
-   - If your model requires an API key, set it appropriately
+   ```bash
+   # On bash
+   export DEFAULT_MODEL_ID="your-prefered-model"
+   ```
 
 3. **Start the server:**
 
