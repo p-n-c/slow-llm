@@ -17,12 +17,13 @@
 3. **Start the server:**
 
    ```bash
-   python llm-api-server.py
+   npm start
    ```
 
 4. **Open the web client:**
-   - Open `llm-web-client.html` in your browser
-   - The client will automatically connect to the API server running at http://127.0.0.1:5000
+   Go directly to http://127.0.0.1:5000/client.
+
+   For more explanation, open the home page of the API server at http://127.0.0.1:5000.
 
 ### API Endpoints
 
