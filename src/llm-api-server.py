@@ -7,12 +7,14 @@ app = Flask(__name__)
 
 # Configure the model to use - change this to your local model
 DEFAULT_MODEL_ID = os.environ.get("DEFAULT_MODEL_ID", "Llama-3")
+MAX_TOKENS = os.environ.get("MAX_TOKENS", 750)
 
 # You can set this in environment or directly here if needed
 # os.environ["MODEL_API_KEY"] = "your-api-key-if-needed"
 
 # Store active conversations
 conversations = {}
+
 
 @app.route('/', methods=['GET'])
 def welcome_page():
@@ -66,7 +68,7 @@ def welcome_page():
         <div class="container">
             <h2>Welcome to the Local LLM API Server</h2>
             <p>This server provides a REST API for interacting with local LLM models.</p>
-            
+
             <h3>Available Endpoints:</h3>
             <ul>
                 <li><code>GET /models</code> - List all available models</li>
@@ -76,7 +78,7 @@ def welcome_page():
                 <li><code>GET /conversation/&lt;id&gt;</code> - Get conversation history</li>
                 <li><code>DELETE /conversation/&lt;id&gt;</code> - Delete a conversation</li>
             </ul>
-            
+
             <h3>Web Client:</h3>
             <p>Use our <a href="/client">web client</a> to interact with the API through a friendly interface.</p>
         </div>
@@ -84,8 +86,9 @@ def welcome_page():
     </html>
     """
 
-# Add this route to serve the web client from the server
+
 @app.route('/client', methods=['GET'])
+# Add this route to serve the web client from the server
 def serve_client():
     """Serve the web client HTML"""
     # You'll need to adjust the path if your HTML file is stored elsewhere
@@ -105,146 +108,161 @@ def serve_client():
         </html>
         """
 
+
 @app.route('/models', methods=['GET'])
 def list_models():
     """List all available models"""
     models = [model.model_id for model in llm.get_models()]
     return jsonify({"models": models})
 
+
 @app.route('/prompt', methods=['POST'])
 def single_prompt():
     """Handle a single prompt without conversation history"""
     data = request.json
-    
+
     if not data or 'prompt' not in data:
         return jsonify({"error": "Prompt is required"}), 400
-    
+
     model_id = data.get('model_id', DEFAULT_MODEL_ID)
     system_prompt = data.get('system', None)
-    
+
     try:
         model = llm.get_model(model_id)
         response = model.prompt(
             data['prompt'],
-            system=system_prompt
+            system=system_prompt,
+            max_tokens=MAX_TOKENS
         )
 
-        
         result = {
             "text": response.text(),
-            "model": model_id
-        }
-        
-        # Add usage information if available
-        try:
-            usage_data = response.usage()
-            if usage_data.input:
-                result["usage"] = {
-                    "input_tokens": usage_data.input,
-                    "output_tokens": usage_data.output
-                }
-        except:
-            pass
-            
-        pprint(response.text())
+            "model": model_id,
+            "usage": {
+                "input_tokens": response.usage().input,
+                "output_tokens": response.usage().output
+            }}
+
         return jsonify(result)
-        
+
     except llm.UnknownModelError:
         return jsonify({"error": f"Unknown model: {model_id}"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/conversation', methods=['POST'])
 def start_conversation():
     """Start a new conversation and return a conversation ID"""
     data = request.json
     model_id = data.get('model_id', DEFAULT_MODEL_ID)
-    
+
     try:
         model = llm.get_model(model_id)
         conversation = model.conversation()
-        
+
         # Generate a simple conversation ID
         import uuid
         conv_id = str(uuid.uuid4())
-        
+
         # Store the conversation
         conversations[conv_id] = conversation
-        
+
         return jsonify({"conversation_id": conv_id, "model": model_id})
-        
+
     except llm.UnknownModelError:
         return jsonify({"error": f"Unknown model: {model_id}"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/conversation/<conversation_id>/prompt', methods=['POST'])
 def conversation_prompt(conversation_id):
     """Send a prompt to an existing conversation"""
     if conversation_id not in conversations:
         return jsonify({"error": "Conversation not found"}), 404
-    
+
     data = request.json
     if not data or 'prompt' not in data:
         return jsonify({"error": "Prompt is required"}), 400
-    
+
     conversation = conversations[conversation_id]
-    
+
     try:
         response = conversation.prompt(data['prompt'])
-        
+
+        # Collect the full response by iterating through chunks
+        full_text = ""
+        for chunk in response:
+            full_text += chunk
+
         result = {
-            "text": response.text(),
+            "text": full_text,
             "conversation_id": conversation_id
         }
-        
+
         # Add usage information if available
         try:
             usage_data = response.usage()
-            if usage_data:
+            if usage_data and hasattr(usage_data, 'input'):
                 result["usage"] = {
                     "input_tokens": usage_data.input,
                     "output_tokens": usage_data.output
                 }
-        except:
-            pass
-            
+        except Exception as e:
+            # Just log the error but don't fail the request
+            print(f"Could not get usage data: {str(e)}")
+
         return jsonify(result)
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/conversation/<conversation_id>', methods=['GET'])
 def get_conversation_history(conversation_id):
     """Get the history of a conversation"""
     if conversation_id not in conversations:
         return jsonify({"error": "Conversation not found"}), 404
-    
+
     conversation = conversations[conversation_id]
-    
+
     # Extract responses from the conversation
     history = []
     for response in conversation.responses:
+        # Get the full text of each response
+        full_text = ""
+        try:
+            # Try to get text directly if already evaluated
+            full_text = response.text()
+        except:
+            # Otherwise iterate through chunks
+            for chunk in response:
+                full_text += chunk
+
         history.append({
             "prompt": response.prompt,
-            "response": response.text()
+            "response": full_text
         })
-    
+
     return jsonify({
         "conversation_id": conversation_id,
         "history": history
     })
+
 
 @app.route('/conversation/<conversation_id>', methods=['DELETE'])
 def delete_conversation(conversation_id):
     """Delete a conversation"""
     if conversation_id not in conversations:
         return jsonify({"error": "Conversation not found"}), 404
-    
+
     del conversations[conversation_id]
     return jsonify({"status": "deleted", "conversation_id": conversation_id})
 
+
 if __name__ == '__main__':
-    print(f"Starting server with DEFAULT_MODEL_ID: {DEFAULT_MODEL_ID}")
+    print(
+        f"Starting server with\n * DEFAULT_MODEL_ID: {DEFAULT_MODEL_ID} \n * MAX_TOKENS: {MAX_TOKENS}")
     # Set this to your desired host/port
     app.run(host='127.0.0.1', port=5000, debug=True)
