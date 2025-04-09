@@ -9,7 +9,7 @@
    ```
 
 2. **Configure the model:**
-   By default, the server uses the `Llama-3` model with a maximum output of 750 tokens. To change this, update environment variables before starting the server.
+   By default, the server uses the `Llama-3` model from [gpt4all](https://github.com/nomic-ai/gpt4all) with a maximum output of 750 tokens. To change this, update environment variables before starting the server.
 
    ```bash
    # On bash
@@ -30,9 +30,9 @@
 
 ### Remarks
 
-- When using a model for the first time, it will automatically download. You can follow the progress in the server output.
-- You can always control the LLM utility (e.g. add API Keys, install new models) in the CLI. Check the [manual](https://llm.datasette.io/) for all infoavailable commands or use `llm --help`.
-- In particular, you may want to install the gpt4all local models plugin to test on your local machine without API keys.
+- When using a local model for the first time, it will automatically download. You can follow the progress in the server output.
+- You can control the LLM utility (e.g. add API Keys, install new models) from the CLI. Check the [manual](https://llm.datasette.io/) for all available commands or use `llm --help`.
+- In particular, you will need to install the gpt4all local models plugin to run the server with the default `Llama-3` model.
 
   ```bash
   # Install the plugin
@@ -41,7 +41,7 @@
   llm models | grep gpt4all
   ```
 
-- Remember to restart the server if you change the environment variablesgit
+- Remember to restart the server if you change the environment variables.
 
 ### API Endpoints
 
