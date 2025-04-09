@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM API Client</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>LLM API Client</h1>
+
+      <div class="panel">
+        <h2>Single Prompt</h2>
+        <div id="model-info" class="model-info">
+          <p>Using model: <span id="model-id">Loading...</span></p>
+          <p>Max tokens: <span id="max-tokens">Loading...</span></p>
+        </div>
+        <div>
+          <label for="system-prompt">System Prompt (Optional):</label>
+          <textarea
+            id="system-prompt"
+            rows="2"
+            placeholder="Optional system prompt..."
+          ></textarea>
+        </div>
+        <div>
+          <label for="single-user-prompt">Your Prompt:</label>
+          <textarea
+            id="single-user-prompt"
+            rows="4"
+            placeholder="Enter your prompt here..."
+          ></textarea>
+        </div>
+        <div class="controls">
+          <button id="send-single-prompt">Send Prompt</button>
+        </div>
+        <div id="request-timer" class="timer">Response time: 0s</div>
+        <div class="message-container" id="single-response"></div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

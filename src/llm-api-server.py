@@ -88,13 +88,21 @@ def welcome_page():
 
 
 @app.route('/client', methods=['GET'])
-# Add this route to serve the web client from the server
 def serve_client():
     """Serve the web client HTML"""
-    # You'll need to adjust the path if your HTML file is stored elsewhere
     try:
-        with open('src/llm-web-client.html', 'r') as f:
-            return f.read()
+        with open('src/index.html', 'r') as f:
+            html_content = f.read()
+            # Inject model information into the HTML
+            html_content = html_content.replace('</body>', f'''
+            <script>
+                window.SERVER_CONFIG = {{
+                    DEFAULT_MODEL_ID: "{DEFAULT_MODEL_ID}",
+                    MAX_TOKENS: {MAX_TOKENS}
+                }};
+            </script>
+            </body>''')
+            return html_content
     except FileNotFoundError:
         return """
         <!DOCTYPE html>
@@ -102,11 +110,31 @@ def serve_client():
         <head><title>Error</title></head>
         <body>
             <h1>Client file not found</h1>
-            <p>The web client file (llm-web-client.html) was not found on the server.</p>
+            <p>The web client file (index.html) was not found on the server.</p>
             <p><a href="/">Return to home</a></p>
         </body>
         </html>
         """
+
+
+@app.route('/styles.css', methods=['GET'])
+def serve_styles():
+    """Serve the CSS file"""
+    try:
+        with open('src/styles.css', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'text/css'}
+    except FileNotFoundError:
+        return "CSS file not found", 404
+
+
+@app.route('/script.js', methods=['GET'])
+def serve_script():
+    """Serve the JavaScript file"""
+    try:
+        with open('src/script.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+    except FileNotFoundError:
+        return "JavaScript file not found", 404
 
 
 @app.route('/models', methods=['GET'])
