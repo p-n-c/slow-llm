@@ -8,12 +8,13 @@
    pip install flask flask-cors llm
    ```
 
-2. **Configure the default model if needed:**
-   The server uses the `Llama-3` model by default. To choose another model, change the `DEFAULT_MODEL_ID` environment variable.
+2. **Configure the model:**
+   By default, the server uses the `Llama-3` model with a maximum output of 750 tokens. To change this, update environment variables before starting the server.
 
    ```bash
    # On bash
    export DEFAULT_MODEL_ID="your-prefered-model"
+   export MAX_TOKENS=42
    ```
 
 3. **Start the server:**
@@ -23,9 +24,24 @@
    ```
 
 4. **Open the web client:**
-   Go directly to http://127.0.0.1:5000/client.
+   Go directly to http://127.0.0.1:5000/client for a simple one-prompt interface.
 
    For more explanation, open the home page of the API server at http://127.0.0.1:5000.
+
+### Remarks
+
+- When using a model for the first time, it will automatically download. You can follow the progress in the server output.
+- You can always control the LLM utility (e.g. add API Keys, install new models) in the CLI. Check the [manual](https://llm.datasette.io/) for all infoavailable commands or use `llm --help`.
+- In particular, you may want to install the gpt4all local models plugin to test on your local machine without API keys.
+
+  ```bash
+  # Install the plugin
+  llm install llm-gpt4all
+  # List only the gpt4all models
+  llm models | grep gpt4all
+  ```
+
+- Remember to restart the server if you change the environment variablesgit
 
 ### API Endpoints
 
@@ -37,11 +53,3 @@ The server provides these endpoints:
 - `POST /conversation/<id>/prompt` - Send a prompt to an existing conversation
 - `GET /conversation/<id>` - Get conversation history
 - `DELETE /conversation/<id>` - Delete a conversation
-
-### Features
-
-- **Model Selection**: Choose from available local models
-- **Single Prompt Mode**: Send one-off prompts with optional system instructions
-- **Conversation Mode**: Maintain context across multiple interactions
-- **Token Usage**: View input/output token counts when available
-- **Simple Web Interface**: User-friendly design with clear visual feedback
